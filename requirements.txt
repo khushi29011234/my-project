@@ -1,0 +1,28 @@
+# BMAD PM Agent - WooCommerce Support System
+# Python 3.13 Compatible
+
+# ── LlamaIndex Core ──────────────────────────
+llama-index-core
+llama-index-llms-openrouter
+llama-index-embeddings-huggingface
+llama-index-readers-file
+llama-index-vector-stores-chroma
+
+# ── Vector DB ────────────────────────────────
+chromadb
+
+# ── txtai Semantic Search ────────────────────
+txtai
+sentence-transformers
+
+# ── Document Processing ──────────────────────
+docx2txt
+pypdf
+python-docx
+
+# ── Utilities ────────────────────────────────
+python-dotenv
+colorama
+numpy
+pyyaml
+transformers

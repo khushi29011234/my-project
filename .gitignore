@@ -1,0 +1,3 @@
+storage/chroma_db/chroma.sqlite3
+*.sqlite3
+storage/

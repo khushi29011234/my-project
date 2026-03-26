@@ -1,0 +1,35 @@
+# WooAssist Pro — Docker Ignore
+# Aa files Docker image ma nahi jaay
+
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+
+# Storage — volumes thi mount thashe
+storage/
+bmad_memory/
+
+# Git
+.git/
+.gitignore
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules
+node_modules/

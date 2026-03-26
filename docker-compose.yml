@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────
+# WooAssist Pro — Docker Compose
+# Private setup — D InfoTech
+# ─────────────────────────────────────────
+
+version: '3.8'
+
+services:
+  wooassist-pro:
+    # Private image — GitHub Container Registry
+    # ghcr.io/your-org/wooassist-pro:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    image: wooassist-pro:latest
+    
+    container_name: wooassist-pro
+    
+    # Interactive terminal — CLI agent mate
+    stdin_open: true
+    tty: true
+    
+    # Environment variables
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - HF_HUB_DISABLE_SYMLINKS_WARNING=1
+      - PYTHONUNBUFFERED=1
+    
+    # Volumes — data persist kare
+    volumes:
+      # Source code + docs
+      - ./data:/app/data
+      # ChromaDB + txtai index persist
+      - ./storage:/app/storage
+      # Memory files persist
+      - ./bmad_memory:/app/bmad_memory
+      # BMAD agents
+      - ./_bmad:/app/_bmad
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Entry command
+    command: python wrapper_agent.py

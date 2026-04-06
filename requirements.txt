@@ -19,6 +19,7 @@ sentence-transformers
 docx2txt
 pypdf
 python-docx
+openpyxl
 
 # ── Utilities ────────────────────────────────
 python-dotenv

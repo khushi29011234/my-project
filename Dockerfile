@@ -17,6 +17,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 # ─────────────────────────────────────────
 # STEP 1: System dependencies install
+# Node.js 20 — BMAD method maate joiye
 # ─────────────────────────────────────────
 RUN apt-get update && apt-get install -y \
     python3.11 \
@@ -26,11 +27,19 @@ RUN apt-get update && apt-get install -y \
     curl \
     wget \
     git \
-    nodejs \
-    npm \
     build-essential \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Node.js 20 install
+# Ubuntu default node v12 che — BMAD node>=20 joiye
+# etle nodesource thi v20 install kariye
+RUN curl -fsSL \
+    https://deb.nodesource.com/setup_20.x \
+    | bash - && \
+    apt-get install -y nodejs && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Python 3.11 as default
 RUN update-alternatives --install \
@@ -58,8 +67,9 @@ COPY . .
 
 # ─────────────────────────────────────────
 # STEP 5: BMAD Method install
+# Node.js 20 sathe properly install thashe
 # ─────────────────────────────────────────
-RUN npm install -g npx && \
+RUN npm install -g bmad-method@latest && \
     npx bmad-method@latest install \
     --yes \
     --output-dir /app/_bmad || true

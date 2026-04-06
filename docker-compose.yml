@@ -3,8 +3,6 @@
 # Private setup — D InfoTech
 # ─────────────────────────────────────────
 
-version: '3.8'
-
 services:
   wooassist-pro:
     # Private image — GitHub Container Registry

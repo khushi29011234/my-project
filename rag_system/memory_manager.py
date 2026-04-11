@@ -4,6 +4,7 @@
 # Self-Improvement Loop added
 
 import os
+import re
 from datetime import datetime
 
 MEMORY_DIR = "bmad_memory"
@@ -101,19 +102,19 @@ class MemoryManager:
         """
         Badhi memory files ek saath read kare
         LLM ne full context aape
-        Lessons FIRST — most important for improvement
+        Lessons FIRST — most important
         """
-        lessons  = self.read_lessons()
-        progress = self.read_progress()
+        lessons   = self.read_lessons()
+        progress  = self.read_progress()
         task_plan = self.read_task_plan()
 
-        # Recent progress j lo — last 10 lines
+        # Recent progress — last 10 lines
         progress_lines = progress.split("\n")
         recent = "\n".join(
             progress_lines[-10:]
         ) if len(progress_lines) > 10 else progress
 
-        # Recent lessons j lo — last 5 lessons
+        # Recent lessons — last 5
         lesson_lines = [
             l for l in lessons.split("\n")
             if l.strip() and "<!--" not in l
@@ -125,7 +126,6 @@ class MemoryManager:
 
         context = ""
 
-        # Lessons FIRST — improve future answers
         if recent_lessons:
             context += (
                 f"\n### Past Lessons — Apply These:\n"
@@ -222,8 +222,8 @@ class MemoryManager:
     ):
         """
         Self-improvement loop — lesson save kare
-        User feedback "bad/wrong" aave tyare call thay
-        Next query ma automatically use thashe
+        User feedback aave tyare call thay
+        Next query ma automatically apply thashe
         """
         date = datetime.now().strftime("%Y-%m-%d")
         entry = (
@@ -231,7 +231,7 @@ class MemoryManager:
             f"Module: {module} | "
             f"Issue: {issue[:80]} | "
             f"Problem: {problem[:150]} | "
-            f"Improvement: {improvement[:150]}"
+            f"Improvement: {improvement[:300]}"
         )
         self._append_to_file(LESSONS, entry)
         print(
@@ -247,56 +247,31 @@ class MemoryManager:
         agent_answer: str
     ):
         """
-        User feedback thi automatic lesson generate
-        Reddit: "After correction, update lessons.md"
-
-        feedback = user e jo kahyu — shu wrong hatu
+        User feedback thi automatic lesson save kare
+        Full feedback as lesson store kare — exact
+        Generic improvement nahi — exact feedback
         """
-        # Common feedback patterns
-        problem = feedback
-        improvement = ""
+        # Full feedback j lesson banavo
+        improvement = feedback[:300]
 
-        feedback_lower = feedback.lower()
-
-        if any(k in feedback_lower for k in [
-            "hindi", "nahi", "ko", "hai"
-        ]):
-            improvement = (
-                "Language strictly Gujarati+English "
-                "Roman script — Hindi ZERO"
+        # Score extract karo jo hoy to
+        score_match = re.search(
+            r'score[:\s]+(\d+)',
+            feedback.lower()
+        )
+        if score_match:
+            score = score_match.group(1)
+            issue = (
+                f"Score {score}% — "
+                f"{query[:80]}"
             )
-
-        elif any(k in feedback_lower for k in [
-            "generic", "specific nathi", "vague"
-        ]):
-            improvement = (
-                "Source code context thi specific "
-                "file path ane exact root cause aapvo"
-            )
-
-        elif any(k in feedback_lower for k in [
-            "urgency", "demo nathi", "wrong trigger"
-        ]):
-            improvement = (
-                "Urgency note ONLY demo/urgent/"
-                "deadline keyword hoy tyare j"
-            )
-
-        elif any(k in feedback_lower for k in [
-            "format", "wrong format", "extra section"
-        ]):
-            improvement = (
-                "Exact format follow karvo — "
-                "no extra sections"
-            )
-
         else:
-            improvement = feedback[:150]
+            issue = query[:80]
 
         self.save_lesson(
             module=module,
-            issue=query[:80],
-            problem=problem[:150],
+            issue=issue,
+            problem=feedback[:150],
             improvement=improvement
         )
 

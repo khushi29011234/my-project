@@ -1,7 +1,7 @@
 # bmad_integration.py
 # BMAD Multi-Agent Chain — Reddit workflow
 # BA → Planner → PM → QA
-# Self-Improvement: Lessons context use kare
+# Self-Improvement: Lessons MANDATORY apply
 
 import os
 from dotenv import load_dotenv
@@ -21,7 +21,7 @@ class BMADPMAgent:
             model="meta-llama/llama-3.3-70b-instruct",
             api_key=os.getenv("OPENROUTER_API_KEY"),
             temperature=0.1,
-            max_tokens=1500
+            max_tokens=500
         )
 
         self.bmad_loader = BMADAgentLoader()
@@ -64,7 +64,10 @@ Analyze from business perspective. Max 5 lines.
         try:
             return self.llm.complete(prompt).text
         except Exception:
-            return f"Module: {module}, Issue: {original_query}"
+            return (
+                f"Module: {module}, "
+                f"Issue: {original_query}"
+            )
 
     # ─────────────────────────────────────────
     # AGENT 2 — Planner
@@ -125,14 +128,22 @@ Break into 3-4 specific tasks. Keep concise.
                 "- Specific file + fix"
             )
 
+        # UPDATED: Lessons MANDATORY apply
         memory_section = ""
         if memory_context:
             memory_section = f"""
-━━━ MEMORY + PAST LESSONS ━━━━━━━━━━━
+━━━ PAST LESSONS — MANDATORY APPLY ━━━
 {memory_context}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-IMPORTANT: Past lessons thi LEARN karo —
-same mistakes repeat na karo
+CRITICAL: Past lessons ma jo specific
+technical points lakhela hoy —
+JSON mismatch, PHP memory, cron jobs,
+Advadd_Info.php, backup restore,
+WooCommerce Settings paths,
+localStorage, Elementor widget,
+privacy plugin etc.
+e BADHA current answer ma include KARO.
+Past feedback IGNORE NEVER karvo.
 """
 
         agent_context = ""
@@ -175,7 +186,9 @@ STRICT:
 5. Urgency → ONLY demo/urgent/deadline exact words
 6. Generic → NEVER
 7. "better" single 't'
-8. Past lessons → APPLY karo
+8. Past lessons → MANDATORY APPLY
+9. Specific UI paths → ALWAYS include
+   (WooCommerce > Settings > ...)
 """
 
         try:
@@ -225,7 +238,7 @@ No QA headers. No commentary.
         if original_query is None:
             original_query = query or ""
 
-        # Memory — lessons FIRST (self-improvement)
+        # Memory — lessons FIRST
         memory_context = self.memory.read_all_context()
 
         # HOW-TO — BA + Planner skip

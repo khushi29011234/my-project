@@ -33,7 +33,6 @@ RUN apt-get update && apt-get install -y \
 
 # Node.js 20 install
 # Ubuntu default node v12 che — BMAD node>=20 joiye
-# etle nodesource thi v20 install kariye
 RUN curl -fsSL \
     https://deb.nodesource.com/setup_20.x \
     | bash - && \
@@ -54,11 +53,14 @@ WORKDIR /app
 
 # ─────────────────────────────────────────
 # STEP 3: Requirements copy + install
+# python-dotenv explicitly install —
+# cache issue avoid karva maate
 # ─────────────────────────────────────────
 COPY requirements.txt .
 
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install python-dotenv colorama
 
 # ─────────────────────────────────────────
 # STEP 4: Project files copy
@@ -68,6 +70,7 @@ COPY . .
 # ─────────────────────────────────────────
 # STEP 5: BMAD Method install
 # Node.js 20 sathe properly install thashe
+# _bmad/ folder COPY . . thi already che
 # ─────────────────────────────────────────
 RUN npm install -g bmad-method@latest && \
     npx bmad-method@latest install \
@@ -93,4 +96,4 @@ ENV HF_HUB_DISABLE_SYMLINKS_WARNING=1
 # ─────────────────────────────────────────
 # STEP 8: Entry point
 # ─────────────────────────────────────────
-CMD ["python", "wrapper_agent.py"]
+CMD ["python3", "wrapper_agent.py"]

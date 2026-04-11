@@ -23,6 +23,7 @@ openpyxl
 
 # ── Utilities ────────────────────────────────
 python-dotenv
+dotenv
 colorama
 numpy
 pyyaml

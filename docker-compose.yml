@@ -40,4 +40,4 @@ services:
     restart: unless-stopped
     
     # Entry command
-    command: python wrapper_agent.py
+    command: python3 wrapper_agent.py

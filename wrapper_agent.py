@@ -16,8 +16,8 @@ load_dotenv()
 # CONVERSATION CONTEXT
 # ─────────────────────────────────────────────────
 
-class ConversationContext:
 
+class ConversationContext:
     def __init__(self):
         self.raw_query = None
         self.module = None
@@ -25,22 +25,84 @@ class ConversationContext:
         self.issue_type = None
         self.location = None
         self.pending_field = None
+        self.query_intent = None
+        self.mode_selected = None  # NEW: "source_code" or "guidance"
+        self.guidance_keywords = [
+            "karvu joiye",
+            "karvu?",
+            "karvu ke nai",
+            "select karvu",
+            "kontu",
+            "kayu",
+            "su kare che",
+            "shu kare che",
+            "format kevo",
+            "format shu",
+            "upload karvu",
+            "include karvu",
+            "guide karo",
+            "guide karu",
+            "short answer",
+            "kyaa rakhvu",
+            "konti template",
+            "setting karvu",
+            "configure karvu",
+        ]
+        self.troubleshooting_keywords = [
+            "error",
+            "fatal",
+            "not working",
+            "fail",
+            "issue",
+            "problem",
+            "broken",
+            "bug",
+            "error aave che",
+            "error ave che",
+            "kaam nathi karto",
+            "correct karvo",
+            "fix",
+            "solve",
+            "resolve",
+            "line ",
+            "php ma",
+            "class not found",
+            "undefined",
+            "exception",
+        ]
 
     def reset(self):
         self.__init__()
 
     def is_complete(self) -> bool:
         return (
-            self.raw_query is not None and
-            self.module is not None and
-            self.issue_type is not None
+            self.raw_query is not None
+            and self.module is not None
+            and self.issue_type is not None
         )
 
+    # NEW — Intent Classification
+    def detect_intent(self, query: str) -> str:
+        q = query.lower().strip()
+
+        # Check for troubleshooting/bug keywords
+        for keyword in self.troubleshooting_keywords:
+            if keyword in q:
+                self.query_intent = "troubleshooting"
+                return "troubleshooting"
+
+        # Check for guidance keywords or question format
+        for keyword in self.guidance_keywords:
+            if keyword in q:
+                self.query_intent = "guidance"
+                return "guidance"
+
+        # Default: troubleshooting (for issue-related queries)
+        self.query_intent = "troubleshooting"
+        return "troubleshooting"
+
     def build_refined_query(self) -> dict:
-        location_str = (
-            f", Location: {self.location}"
-            if self.location else ""
-        )
+        location_str = f", Location: {self.location}" if self.location else ""
 
         if self.query_type == "howto":
             bmad_query = (
@@ -72,7 +134,7 @@ class ConversationContext:
         return {
             "bmad_query": bmad_query,
             "rag_query": rag_query,
-            "original": self.raw_query
+            "original": self.raw_query,
         }
 
 
@@ -89,19 +151,14 @@ CLARIFICATION_FLOW = {
                 "Display issue",
                 "Functionality issue",
                 "Filter issue",
-                "Checkout issue"
-            ]
+                "Checkout issue",
+            ],
         },
         {
             "field": "location",
             "question": "Kyaa page par issue aave che?",
-            "options": [
-                "Shop page",
-                "Product page",
-                "Checkout page",
-                "Admin panel"
-            ]
-        }
+            "options": ["Shop page", "Product page", "Checkout page", "Admin panel"],
+        },
     ],
     "ring building": [
         {
@@ -111,20 +168,15 @@ CLARIFICATION_FLOW = {
                 "Setting select issue",
                 "Diamond selection issue",
                 "URL/redirect issue",
-                "Checkout issue"
-            ]
+                "Checkout issue",
+            ],
         }
     ],
     "double pagination": [
         {
             "field": "issue_type",
             "question": "Pagination issue kyaa tab par che?",
-            "options": [
-                "Diamond tab",
-                "Lab-Grown tab",
-                "Banne tabs",
-                "Other tab"
-            ]
+            "options": ["Diamond tab", "Lab-Grown tab", "Banne tabs", "Other tab"],
         }
     ],
     "pagination": [
@@ -135,8 +187,8 @@ CLARIFICATION_FLOW = {
                 "Double pagination",
                 "Pagination kaam nathi karto",
                 "Wrong page count",
-                "AJAX reload issue"
-            ]
+                "AJAX reload issue",
+            ],
         }
     ],
     "filter": [
@@ -147,8 +199,8 @@ CLARIFICATION_FLOW = {
                 "Double filter show",
                 "Filter kaam nathi karto",
                 "Wrong results",
-                "Slow loading"
-            ]
+                "Slow loading",
+            ],
         },
         {
             "field": "location",
@@ -157,9 +209,9 @@ CLARIFICATION_FLOW = {
                 "Category page",
                 "Shop page",
                 "Lab-grown page",
-                "Natural diamond page"
-            ]
-        }
+                "Natural diamond page",
+            ],
+        },
     ],
     "bundle checkout": [
         {
@@ -169,8 +221,8 @@ CLARIFICATION_FLOW = {
                 "Payment fail",
                 "Cart issue",
                 "Product not found",
-                "Order not placed"
-            ]
+                "Order not placed",
+            ],
         }
     ],
     "lab-grown": [
@@ -181,8 +233,8 @@ CLARIFICATION_FLOW = {
                 "Products nathi dikhta",
                 "Filter issue",
                 "Pagination issue",
-                "Display issue"
-            ]
+                "Display issue",
+            ],
         }
     ],
     "natural diamond": [
@@ -193,8 +245,8 @@ CLARIFICATION_FLOW = {
                 "Products nathi dikhta",
                 "Filter issue",
                 "Pagination issue",
-                "Display issue"
-            ]
+                "Display issue",
+            ],
         }
     ],
     "cart": [
@@ -205,8 +257,8 @@ CLARIFICATION_FLOW = {
                 "Add to cart fail",
                 "Product not found",
                 "Quantity issue",
-                "Cart empty thay che"
-            ]
+                "Cart empty thay che",
+            ],
         }
     ],
     "checkout": [
@@ -217,8 +269,8 @@ CLARIFICATION_FLOW = {
                 "Payment fail",
                 "Order not placed",
                 "Product data missing",
-                "Session issue"
-            ]
+                "Session issue",
+            ],
         }
     ],
     "product attributes": [
@@ -229,8 +281,8 @@ CLARIFICATION_FLOW = {
                 "Attributes nathi dikhta",
                 "Wrong attribute value",
                 "Variation missing",
-                "Filter ma nathi aavta"
-            ]
+                "Filter ma nathi aavta",
+            ],
         }
     ],
     "general": [
@@ -241,10 +293,10 @@ CLARIFICATION_FLOW = {
                 "Plugin activation issue",
                 "Fatal error",
                 "Display issue",
-                "Functionality issue"
-            ]
+                "Functionality issue",
+            ],
         }
-    ]
+    ],
 }
 
 
@@ -252,13 +304,10 @@ CLARIFICATION_FLOW = {
 # WRAPPER AGENT
 # ─────────────────────────────────────────────────
 
-class WrapperAgent:
 
+class WrapperAgent:
     def __init__(self):
-        print(
-            f"{Fore.CYAN}🚀 Initializing BMAD "
-            f"PM Agent...{Style.RESET_ALL}"
-        )
+        print(f"{Fore.CYAN}🚀 Initializing BMAD PM Agent...{Style.RESET_ALL}")
         self.bmad = BMADPMAgent()
 
         self.modules = [
@@ -293,7 +342,8 @@ class WrapperAgent:
         ]
 
         self.direct_issue_keywords = [
-            "fatal", "fatal error",
+            "fatal",
+            "fatal error",
             "class not found",
             "sp_extensions_bootstrap",
             "sp_extensions",
@@ -304,63 +354,141 @@ class WrapperAgent:
             "activation error",
             "plugin conflict",
             "bootstrap error",
-            
         ]
 
         self.howto_keywords = [
-            "kevi rite", "kevi rite javaay",
-            "process shu che", "flow shu che",
-            "steps shu che", "kevi rite kaam kare",
-            "how does", "how to",
-            "thashe ke", "reflect thashe ke",
+            "kevi rite",
+            "kevi rite javaay",
+            "process shu che",
+            "flow shu che",
+            "steps shu che",
+            "kevi rite kaam kare",
+            "how does",
+            "how to",
+            "thashe ke",
+            "reflect thashe ke",
             "support kare che ke",
             "possible che ke",
-            "javaay", "navigate", "redirect",
+            "javaay",
+            "navigate",
+            "redirect",
             "kevi rite karvaay",
         ]
 
         self.project_keywords = [
-            "ring", "builder", "diamond",
-            "filter", "bundle", "checkout",
-            "pagination", "lab", "product",
-            "attribute", "woo", "plugin",
-            "kaam", "error", "issue", "problem",
-            "nathi", "fail", "not working",
-            "working", "broken", "demo",
-            "payment", "cart", "order",
-            "scroll", "load", "display",
-            "show", "hide", "click", "button",
-            "url", "eo_wbc", "step", "flow",
-            "setting", "select", "category",
-            "variation", "validate", "session",
-            "redirect", "navigate", "javaay",
-            "thashe", "karvaay", "process",
-            "fatal", "bootstrap", "extension",
-            "class", "debug", "stack", "ftp",
-            "git", "upload", "activate",
-            "shop", "page", "admin", "panel",
-            "functionality", "double", "single",
-            "wrong", "slow", "missing", "empty",
-            "found", "activation", "variation",
-            "display", "ajax", "reload",
-            "shortcode", "shortflt",
+            "ring",
+            "builder",
+            "diamond",
+            "filter",
+            "bundle",
+            "checkout",
+            "pagination",
+            "lab",
+            "product",
+            "attribute",
+            "woo",
+            "plugin",
+            "kaam",
+            "error",
+            "issue",
+            "problem",
+            "nathi",
+            "fail",
+            "not working",
+            "working",
+            "broken",
+            "demo",
+            "payment",
+            "cart",
+            "order",
+            "scroll",
+            "load",
+            "display",
+            "show",
+            "hide",
+            "click",
+            "button",
+            "url",
+            "eo_wbc",
+            "step",
+            "flow",
+            "setting",
+            "select",
+            "category",
+            "variation",
+            "validate",
+            "session",
+            "redirect",
+            "navigate",
+            "javaay",
+            "thashe",
+            "karvaay",
+            "process",
+            "fatal",
+            "bootstrap",
+            "extension",
+            "class",
+            "debug",
+            "stack",
+            "ftp",
+            "git",
+            "upload",
+            "activate",
+            "shop",
+            "page",
+            "admin",
+            "panel",
+            "functionality",
+            "double",
+            "single",
+            "wrong",
+            "slow",
+            "missing",
+            "empty",
+            "found",
+            "activation",
+            "variation",
+            "display",
+            "ajax",
+            "reload",
+            "shortcode",
+            "shortflt",
         ]
 
         self.bypass_keywords = [
-            "hello", "hi", "thanks",
-            "bye", "thank you",
+            "hello",
+            "hi",
+            "thanks",
+            "bye",
+            "thank you",
         ]
 
         # ── FIX 1: Updated feedback keywords ──
         # "hindi avyu", "hindi aavyu" both add karya
         self.negative_feedback_keywords = [
-            "wrong", "incorrect", "bad answer",
-            "generic", "hindi aavyu", "hindi avyu",
-            "hindi", "format wrong", "galat",
-            "nahi joitu", "improve", "saru nathi",
-            "incomplete", "specific nathi", "vague",
-            "chhe aavyu", "wrong format",
-            "urgency wrong", "extra section",
+            "too short",
+            "too long",
+            "need more",
+            "need detail",
+            "wrong",
+            "incorrect",
+            "bad answer",
+            "generic",
+            "hindi aavyu",
+            "hindi avyu",
+            "hindi",
+            "format wrong",
+            "galat",
+            "nahi joitu",
+            "improve",
+            "saru nathi",
+            "incomplete",
+            "specific nathi",
+            "vague",
+            "chhe aavyu",
+            "wrong format",
+            "urgency wrong",
+            "extra section",
             "next time",
             "include specific",
             "should include",
@@ -425,11 +553,10 @@ class WrapperAgent:
         self.last_answer = None
         self.last_module = None
         self.last_query = None
+        self.initial_mode_selected = False
+        self.initial_mode = None
 
-        print(
-            f"{Fore.GREEN}✅ Agent Ready"
-            f"{Style.RESET_ALL}\n"
-        )
+        print(f"{Fore.GREEN}✅ Agent Ready{Style.RESET_ALL}\n")
 
     # ─────────────────────────────────────────
 
@@ -499,27 +626,44 @@ class WrapperAgent:
                 module=self.last_module,
                 query=self.last_query,
                 feedback=user_feedback,
-                agent_answer=self.last_answer or ""
+                agent_answer=self.last_answer or "",
             )
             print(
                 f"\n{Fore.GREEN}📚 Feedback noted — "
-                f"System improved!"
-                f"{Style.RESET_ALL}\n"
+                f"Re-analyzing with feedback...{Style.RESET_ALL}"
             )
+
+            # Re-run analysis with feedback context
+            self.ctx.raw_query = self.last_query
+            self.ctx.module = self.last_module
+            self.ctx.query_type = "issue"
+            self.ctx.issue_type = "feedback_correction"
+
+            # Get stored memory context with feedback
+            from rag_system.memory_manager import MemoryManager
+
+            memory = MemoryManager()
+            memory_context = memory.read_all_context()
+
+            # Rebuild query with feedback
+            refined = {
+                "bmad_query": f"{self.last_module}: {self.last_query} | Feedback: {user_feedback}",
+                "rag_query": f"{self.last_module} {self.last_query} fix: {user_feedback}",
+                "original": self.last_query,
+            }
+
+            # Run analysis again with feedback
+            # FIX: Force troubleshooting intent for feedback re-analysis
+            self._run_analysis(refined, self.last_module, "issue", "troubleshooting")
+
         else:
-            print(
-                f"\n{Fore.YELLOW}⚠️ No previous "
-                f"answer to improve."
-                f"{Style.RESET_ALL}\n"
-            )
+            print(f"\n{Fore.YELLOW}⚠️ No previous answer to improve.{Style.RESET_ALL}\n")
 
     # ─────────────────────────────────────────
     # CLARIFICATION
     # ─────────────────────────────────────────
 
-    def _get_clarification_questions(
-        self, module: str
-    ) -> list:
+    def _get_clarification_questions(self, module: str) -> list:
         if module in CLARIFICATION_FLOW:
             return CLARIFICATION_FLOW[module]
         for key in CLARIFICATION_FLOW:
@@ -528,40 +672,24 @@ class WrapperAgent:
         return CLARIFICATION_FLOW.get("general", [])
 
     def _ask_next_clarification(self) -> bool:
-        questions = self._get_clarification_questions(
-            self.ctx.module or "general"
-        )
+        questions = self._get_clarification_questions(self.ctx.module or "general")
         for q in questions:
             field = q["field"]
             if getattr(self.ctx, field, None) is None:
                 self.ctx.pending_field = field
-                print(
-                    f"\n{Fore.YELLOW}🤖 "
-                    f"{q['question']}"
-                    f"{Style.RESET_ALL}"
-                )
-                for i, opt in enumerate(
-                    q["options"], 1
-                ):
+                print(f"\n{Fore.YELLOW}🤖 {q['question']}{Style.RESET_ALL}")
+                for i, opt in enumerate(q["options"], 1):
                     print(f"   {i}. {opt}")
-                print(
-                    f"\n   {Fore.WHITE}"
-                    f"(Number ya text type karo)"
-                    f"{Style.RESET_ALL}\n"
-                )
+                print(f"\n   {Fore.WHITE}(Number ya text type karo){Style.RESET_ALL}\n")
                 return True
         return False
 
-    def _fill_clarification(
-        self, user_input: str
-    ):
+    def _fill_clarification(self, user_input: str):
         if not self.ctx.pending_field:
             return
 
         field = self.ctx.pending_field
-        questions = self._get_clarification_questions(
-            self.ctx.module or "general"
-        )
+        questions = self._get_clarification_questions(self.ctx.module or "general")
 
         current_q = None
         for q in questions:
@@ -587,23 +715,28 @@ class WrapperAgent:
         setattr(self.ctx, field, value)
         self.ctx.pending_field = None
 
-        print(
-            f"{Fore.GREEN}✅ {field}: "
-            f"{value}{Style.RESET_ALL}"
-        )
+        print(f"{Fore.GREEN}✅ {field}: {value}{Style.RESET_ALL}")
+
+    def ask_mode_selection(self):
+        print(f"\n{Fore.YELLOW}🤖 What type of help do you need?{Style.RESET_ALL}")
+        print(f"   1. Source Code Analysis (detailed fix)")
+        print(f"   2. Quick Guidance (short answer)")
+        print(f"\n   (Type 1 or 2){Style.RESET_ALL}\n")
 
     def ask_module_confirmation(self):
         print(
-            f"\n{Fore.YELLOW}🤖 Which module is "
-            f"this issue related to?"
-            f"{Style.RESET_ALL}"
+            f"\n{Fore.YELLOW}🤖 Which module is this issue related to?{Style.RESET_ALL}"
         )
         unique = [
-            "ring builder", "lab-grown",
-            "natural diamond", "filter",
-            "pagination", "bundle checkout",
-            "product attributes", "checkout",
-            "payment"
+            "ring builder",
+            "lab-grown",
+            "natural diamond",
+            "filter",
+            "pagination",
+            "bundle checkout",
+            "product attributes",
+            "checkout",
+            "payment",
         ]
         for i, m in enumerate(unique, 1):
             print(f"   {i}. {m}")
@@ -614,45 +747,42 @@ class WrapperAgent:
     # ─────────────────────────────────────────
 
     def _run_analysis(
-        self, refined: dict,
-        module: str,
-        query_type: str
+        self, refined: dict, module: str, query_type: str, query_intent: str = None
     ):
-        self.memory.save_task(
-            module,
-            self.ctx.issue_type or query_type,
-            "IN_PROGRESS"
-        )
+        # NEW: Get intent from context
+        if query_intent is None:
+            query_intent = getattr(self.ctx, "query_intent", None) or "troubleshooting"
 
-        print(
-            f"{Fore.CYAN}🔍 Scanning source code "
-            f"+ documentation..."
-            f"{Style.RESET_ALL}\n"
-        )
+        self.memory.save_task(module, self.ctx.issue_type or query_type, "IN_PROGRESS")
+
+        # Different message based on intent
+        if query_intent == "guidance":
+            print(f"{Fore.CYAN}📖 Fetching quick guidance...{Style.RESET_ALL}\n")
+        else:
+            print(
+                f"{Fore.CYAN}🔍 Scanning source code "
+                f"+ documentation..."
+                f"{Style.RESET_ALL}\n"
+            )
 
         result = self.bmad.analyze_issue(
             bmad_query=refined["bmad_query"],
             rag_query=refined["rag_query"],
             original_query=refined["original"],
             module=module,
-            query_type=query_type
+            query_type=query_type,
+            query_intent=query_intent,
         )
 
         print(
-            f"\n{Fore.GREEN}{'─'*55}\n"
+            f"\n{Fore.GREEN}{'─' * 55}\n"
             f"📋 BMAD PM ANALYSIS\n"
-            f"{'─'*55}{Style.RESET_ALL}"
+            f"{'─' * 55}{Style.RESET_ALL}"
         )
         print(result)
-        print(
-            f"{Fore.GREEN}{'─'*55}"
-            f"{Style.RESET_ALL}\n"
-        )
+        print(f"{Fore.GREEN}{'─' * 55}{Style.RESET_ALL}\n")
 
-        self.memory.save_progress(
-            refined["original"],
-            result[:300]
-        )
+        self.memory.save_progress(refined["original"], result[:300])
         self.memory.update_task_status(module, "DONE")
 
         self.last_answer = result
@@ -672,22 +802,33 @@ class WrapperAgent:
     # ─────────────────────────────────────────
 
     def chat(self):
-        print(f"{Fore.CYAN}{'='*55}")
-        print(
-            "   BMAD PM Agent — "
-            "WooCommerce Bundle Support"
-        )
-        print(f"{'='*55}{Style.RESET_ALL}")
-        print(
-            f"{Fore.WHITE}Type 'exit' to quit\n"
-            f"{Style.RESET_ALL}"
-        )
+        print(f"{Fore.CYAN}{'=' * 55}")
+        print("   BMAD PM Agent — BUNDLOICE Support")
+        print(f"{'=' * 55}{Style.RESET_ALL}")
+
+        # STEP 0: Ask mode selection ONCE at start
+        if not self.initial_mode_selected:
+            self.ask_mode_selection()
+            while True:
+                print(f"{Fore.BLUE}💬 You:{Style.RESET_ALL} ", end="")
+                user_input = input().strip()
+
+                if user_input in ["1", "2"]:
+                    self.initial_mode = (
+                        "source_code" if user_input == "1" else "guidance"
+                    )
+                    self.initial_mode_selected = True
+                    print(
+                        f"\n{Fore.GREEN}✅ Mode set: {self.initial_mode}{Style.RESET_ALL}\n"
+                    )
+                    break
+                else:
+                    print(f"{Fore.YELLOW}⚠️ Please type 1 or 2{Style.RESET_ALL}\n")
+
+        print(f"{Fore.WHITE}Type 'exit' to quit\n")
 
         while True:
-            print(
-                f"{Fore.BLUE}💬 You:{Style.RESET_ALL} ",
-                end=""
-            )
+            print(f"{Fore.BLUE}💬 You:{Style.RESET_ALL} ", end="")
             user_input = input().strip()
 
             if not user_input:
@@ -695,10 +836,7 @@ class WrapperAgent:
 
             if user_input.lower() in ["exit", "quit"]:
                 self.memory.clear_session()
-                print(
-                    f"\n{Fore.YELLOW}👋 Agent offline"
-                    f"{Style.RESET_ALL}"
-                )
+                print(f"\n{Fore.YELLOW}👋 Agent offline{Style.RESET_ALL}")
                 break
 
             # ── FIX 2: Feedback PEHLA check ──
@@ -722,92 +860,63 @@ class WrapperAgent:
                 self._fill_clarification(user_input)
 
                 if self.ctx.is_complete():
-                    has_more = \
-                        self._ask_next_clarification()
+                    has_more = self._ask_next_clarification()
                     if not has_more:
-                        refined = \
-                            self.ctx.build_refined_query()
+                        refined = self.ctx.build_refined_query()
                         module = self.ctx.module
                         query_type = self.ctx.query_type
-                        self._run_analysis(
-                            refined, module, query_type
-                        )
+                        self._run_analysis(refined, module, query_type)
                         self.ctx.reset()
                 else:
                     self._ask_next_clarification()
                 continue
 
-            # STEP 4: Module confirmation pending
-            if self.ctx.raw_query and \
-                    not self.ctx.module:
-                detected = self.detect_module(
-                    user_input
-                )
+            # STEP 5: Module confirmation pending
+            if self.ctx.raw_query and not self.ctx.module:
+                detected = self.detect_module(user_input)
                 self.ctx.module = detected or user_input
-                print(
-                    f"\n{Fore.GREEN}✅ Module: "
-                    f"{self.ctx.module}"
-                    f"{Style.RESET_ALL}"
-                )
+                print(f"\n{Fore.GREEN}✅ Module: {self.ctx.module}{Style.RESET_ALL}")
                 self._ask_next_clarification()
                 continue
 
-            # STEP 5: New query
-            query_type = "howto" \
-                if self.is_howto_query(user_input) \
-                else "issue"
+            # STEP 6: New query - Use initial mode (no mode selection needed)
+            # Process based on initial mode selection
+            detected_module = self.detect_module(user_input)
 
-            # Direct issue
-            if self.is_direct_issue(user_input):
-                print(
-                    f"\n{Fore.YELLOW}⚡ Direct issue "
-                    f"detected{Style.RESET_ALL}"
-                )
-                self.ctx.reset()
-                self.ctx.raw_query = user_input
-                self.ctx.module = "general"
-                self.ctx.query_type = "issue"
-                self.ctx.issue_type = "fatal error"
-                refined = self.ctx.build_refined_query()
-                self._run_analysis(
-                    refined, "general", "issue"
-                )
-                self.ctx.reset()
-                continue
-
-            # How-to
-            if query_type == "howto":
-                detected = self.detect_module(
-                    user_input
-                )
-                module = detected or "general"
-                self.ctx.reset()
-                self.ctx.raw_query = user_input
-                self.ctx.module = module
-                self.ctx.query_type = "howto"
-                self.ctx.issue_type = "howto"
-                refined = self.ctx.build_refined_query()
-                self._run_analysis(
-                    refined, module, "howto"
-                )
-                self.ctx.reset()
-                continue
-
-            # Normal issue
             self.ctx.reset()
             self.ctx.raw_query = user_input
-            self.ctx.query_type = query_type
-            detected = self.detect_module(user_input)
+            self.ctx.query_type = (
+                "howto" if self.is_howto_query(user_input) else "issue"
+            )
 
-            if detected:
-                self.ctx.module = detected
+            if detected_module:
+                self.ctx.module = detected_module
                 print(
-                    f"\n{Fore.GREEN}✅ Module detected:"
-                    f" {detected}{Style.RESET_ALL}"
+                    f"\n{Fore.GREEN}✅ Module detected: {detected_module}{Style.RESET_ALL}"
                 )
-                self._ask_next_clarification()
             else:
-                self.ask_module_confirmation()
+                self.ctx.module = "general"
+                print(f"\n{Fore.GREEN}✅ Module: general{Style.RESET_ALL}")
+
+            # Use the initial mode for processing
+            if self.initial_mode == "guidance":
+                query_type = "howto" if self.is_howto_query(user_input) else "guidance"
+
+                # FIX: Detect intent using the guidance keywords
+                self.ctx.query_intent = self.ctx.detect_intent(user_input)
+
+                refined = {
+                    "bmad_query": (
+                        f"{self.ctx.module} best practice setup guide: {user_input}. Give short answer about recommended setting/choice."
+                    ),
+                    "rag_query": (
+                        f"{self.ctx.module} documentation: {user_input}. Focus on recommended configuration for admin settings."
+                    ),
+                    "original": user_input,
+                }
+                self._run_analysis(refined, self.ctx.module, "guidance", "guidance")
+            else:
+                self._ask_next_clarification()
 
 
 if __name__ == "__main__":

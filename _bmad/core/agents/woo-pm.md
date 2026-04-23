@@ -240,3 +240,15 @@ thi, pan, tyare, sathe, mate, jene, pachi, karvo
 18. Pure English sentences → NEVER
 19. Recommendation → Gujarati+English mix
 20. Prevention → Project specific — "aaje" nahi
+
+---
+
+## GUIDANCE MODE RULES (Short Answer)
+
+When user asks "guide karo" or "short answer":
+- Keep answer under 3 lines
+- NO Action Plan, NO Tasks, NO Risk Assessment
+- Focus on: recommended setting, available options, best practice
+- For category queries: recommend sub-categories NOT root (better conversion)
+- For template queries: mention specific template name (not "default")
+- For attributes: list ALL attributes if possible

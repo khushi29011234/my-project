@@ -120,7 +120,7 @@ Break into 3-4 specific tasks. Keep concise.
             memory_section = f"""
 ━━━ PAST LESSONS — MANDATORY APPLY ━━━
 {memory_context}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CRITICAL: Past lessons ma jo specific
 technical points lakhela hoy —
 JSON mismatch, PHP memory, cron jobs,
@@ -155,11 +155,11 @@ Past feedback IGNORE NEVER karvo.
 
 ━━━ SOURCE CODE (BMAD) ━━━━━━━━━━━━━━
 {source_context}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ━━━ DOCUMENTATION (RAG) ━━━━━━━━━━━━━
 {doc_context}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {agent_context}{memory_section}
 Query: {original_query}
 {f"Module: {module}" if module else ""}
@@ -230,7 +230,8 @@ No QA headers. No commentary.
             print("📖 Guidance Mode: Quick answer only...")
 
             # Check knowledge base first for known queries
-            kb_path = "C:\\WooAssist_Pro\\knowledge_base.json"
+            kb_path = os.getenv("KB_PATH", "knowledge_base.json")
+
             try:
                 with open(kb_path, "r", encoding="utf-8") as f:
                     kb = json.load(f)
@@ -314,6 +315,49 @@ STRICT: Keep answer under 3 lines. Direct and simple.
 
         # Memory — lessons FIRST
         memory_context = self.memory.read_all_context()
+
+        # MODE 3 — FASTER: txtai retrieval + LLM synthesis
+        if query_intent == "faster":
+            print("⚡ Faster Mode: txtai + LLM synthesis...")
+
+            # Step 1: txtai fast retrieval
+            result = self.rag_tool.answer_from_docs(original_query)
+            context = result.get("answer", "")
+            sources = result.get("sources", [])
+
+            if not context or "No relevant" in context:
+                return "❌ No relevant documentation found for this query."
+
+            # Step 2: LLM synthesis over retrieved chunks only
+            fast_prompt = f"""
+{self.pm_prompt}
+
+FAST MODE: Answer from retrieved documentation ONLY.
+Do NOT use external knowledge. Synthesize from context.
+
+Context from documentation:
+{context}
+
+User Query: {original_query}
+
+STRICT:
+1. Answer ONLY from provided context above
+2. Keep under 10 lines, direct
+3. Include specific steps/file paths if available in context
+4. Mention source files at end
+5. Gujarati+English Roman only
+6. NO Action Plan, NO Tasks, NO Risk Assessment
+"""
+            try:
+                answer = self.llm.complete(fast_prompt).text
+                output = f"⚡ FAST ANSWER:\n\n{answer}"
+                if sources:
+                    output += f"\n\n📚 Sources: {', '.join(sources[:3])}"
+                    if len(sources) > 3:
+                        output += f" (+{len(sources)-3} more)"
+                return output
+            except Exception as e:
+                return f"❌ Fast mode error: {e}"
 
         # HOW-TO — BA + Planner skip
         if query_type == "howto":

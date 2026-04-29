@@ -20,9 +20,10 @@ class RAGTool:
     Ek j RAG backend — Singleton
     BMAD agent + Wrapper agent banne same instance use kare
     
-    search_source_code() — LlamaIndex + ChromaDB
-    search_docs()        — txtai semantic search
+    search_source_code() — LlamaIndex + ChromaDB (source code)
+    search_docs()        — txtai semantic search (docs)
     search_all()         — banne ek saath
+    answer_from_docs()   — txtai direct answer (Mode 3 — faster)
     """
 
     _instance = None
@@ -127,3 +128,10 @@ class RAGTool:
             "source_code": self.search_source_code(query),
             "documentation": self.search_docs(query)
         }
+
+    def answer_from_docs(self, query: str) -> dict:
+        """
+        Mode 3 — Faster response via txtai direct answer
+        Returns answer + sources without LLM processing
+        """
+        return self.hybrid_search.answer_query(query)

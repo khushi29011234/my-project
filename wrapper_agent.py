@@ -3,6 +3,7 @@
 # Self-Improvement Loop — Reddit workflow
 
 import os
+import re
 from dotenv import load_dotenv
 from colorama import init, Fore, Style
 from bmad_integration import BMADPMAgent
@@ -314,7 +315,6 @@ class WrapperAgent:
             "double pagination",
             "ring builder",
             "ring building",
-            "ring build",
             "lab-grown",
             "lab grown diamond",
             "lab grown",
@@ -341,20 +341,46 @@ class WrapperAgent:
             "ring",
         ]
 
+        # ── SINGLE SOURCE OF TRUTH: Direct issue keywords ──
+        # Keywords that indicate a short, direct issue requiring minimal clarification
         self.direct_issue_keywords = [
-            "fatal",
-            "fatal error",
-            "class not found",
-            "sp_extensions_bootstrap",
-            "sp_extensions",
-            "not found error",
-            "critical error",
-            "white screen",
-            "500 error",
-            "activation error",
-            "plugin conflict",
-            "bootstrap error",
+            # Critical errors
+            "fatal", "fatal error", "class not found", "sp_extensions_bootstrap",
+            "sp_extensions", "not found error", "critical error", "white screen",
+            "500 error", "activation error", "plugin conflict", "bootstrap error",
+            "error aave che", "error ave che", "kaam nathi karto", "not working",
+            "broken", "php error", "syntax error", "parse error", "memory exhausted",
+            "timeout", "undefined index", "undefined variable", "call to undefined",
+            # Specific problems (2-3 word patterns)
+            "pagination issue", "filter issue", "checkout error", "cart empty",
+            "product missing", "redirect not working", "url issue",
+            "configuration error", "settings not saving", "validation fail",
+            "session issue", "database error", "database connection", "memory limit",
+            # Direct "module + issue" patterns
+            "ring builder issue", "ring building issue",
+            "lab grown issue", "natural diamond issue",
+            "bundle checkout issue", "product attribute issue",
         ]
+
+        # Direct passthrough uses the same consolidated keyword list
+        # (alias removed — use direct_issue_keywords directly)
+        self.direct_passthrough_keywords = self.direct_issue_keywords
+
+        # ── Semantic bypass: txtai embeddings ──
+        # Initialize txtai for semantic similarity checks
+        try:
+            from txtai import Embeddings
+            self.txtai_instance = Embeddings({"path": "sentence-transformers/all-MiniLM-L6-v2"})
+            # Exemplars for direct issues — update as needed
+            direct_exemplars = [
+                "fatal error", "critical error", "white screen",
+                "500 error", "pagination issue", "checkout error",
+                "filter issue", "payment failed", "add to cart broken"
+            ]
+            self.txtai_instance.index([(text, text, None) for text in direct_exemplars])
+        except ImportError:
+            self.txtai_instance = None
+            print(f"{Fore.YELLOW}⚠️ txtai not available, semantic bypass disabled{Style.RESET_ALL}")
 
         self.howto_keywords = [
             "kevi rite",
@@ -463,8 +489,6 @@ class WrapperAgent:
             "thank you",
         ]
 
-        # ── FIX 1: Updated feedback keywords ──
-        # "hindi avyu", "hindi aavyu" both add karya
         self.negative_feedback_keywords = [
             "too short",
             "too long",
@@ -588,11 +612,61 @@ class WrapperAgent:
 
         return False
 
-    def is_direct_issue(self, query):
-        q = query.lower().strip()
-        for k in self.direct_issue_keywords:
-            if k in q:
+    def is_semantic_direct_passthrough(self, query: str) -> bool:
+        """Check if query semantically matches direct issue patterns using txtai embeddings"""
+        if not hasattr(self, 'txtai_instance') or not self.txtai_instance:
+            return False
+
+        # Check if query is very short (to maintain performance)
+        if len(query.strip().split()) > 4:
+            return False
+
+        # Get similarity score against exemplars
+        try:
+            results = self.txtai_instance.search(query, 1)
+            if results and results[0][1] > 0.82:  # Similarity threshold (safer value)
                 return True
+        except:
+            pass
+        return False
+
+    def is_direct_passthrough(self, query: str) -> bool:
+        """
+        Direct Passthrough Check — Kept for backward compatibility
+
+        Condition:
+        - Query is very short (2-4 words)
+        - Contains predefined direct issue keywords
+        - Should bypass wrapper clarification/agent prompt
+        - Direct to BMAD PM Agent
+
+        Examples:
+        "fatal error", "pagination issue", "checkout bug"
+        "ring builder issue", "white screen", "500 error"
+        """
+        # First try semantic check
+        if self.is_semantic_direct_passthrough(query):
+            return True
+
+        # Fallback to keyword check
+        q = query.lower().strip()
+        word_count = len(q.split())
+
+        # Very short queries only (2-4 words)
+        if word_count > 4:
+            return False
+
+        # Check for direct issue keywords/phrases
+        for keyword in self.direct_issue_keywords:
+            if keyword in q:
+                return True
+
+        # Check if starts with module name + direct issue word
+        direct_issue_words = ["issue", "error", "bug", "problem", "fail", "broken"]
+        for module in self.modules:
+            if q.startswith(module.lower()) and any(word in q for word in direct_issue_words):
+                return True
+
         return False
 
     def is_howto_query(self, query):
@@ -721,7 +795,8 @@ class WrapperAgent:
         print(f"\n{Fore.YELLOW}🤖 What type of help do you need?{Style.RESET_ALL}")
         print(f"   1. Source Code Analysis (detailed fix)")
         print(f"   2. Quick Guidance (short answer)")
-        print(f"\n   (Type 1 or 2){Style.RESET_ALL}\n")
+        print(f"   3. Faster Response (txtai retrieval)")
+        print(f"\n   (Type 1, 2 or 3){Style.RESET_ALL}\n")
 
     def ask_module_confirmation(self):
         print(
@@ -813,17 +888,20 @@ class WrapperAgent:
                 print(f"{Fore.BLUE}💬 You:{Style.RESET_ALL} ", end="")
                 user_input = input().strip()
 
-                if user_input in ["1", "2"]:
-                    self.initial_mode = (
-                        "source_code" if user_input == "1" else "guidance"
-                    )
+                if user_input in ["1", "2", "3"]:
+                    if user_input == "1":
+                        self.initial_mode = "source_code"
+                    elif user_input == "2":
+                        self.initial_mode = "guidance"
+                    else:
+                        self.initial_mode = "faster"
                     self.initial_mode_selected = True
                     print(
                         f"\n{Fore.GREEN}✅ Mode set: {self.initial_mode}{Style.RESET_ALL}\n"
                     )
                     break
                 else:
-                    print(f"{Fore.YELLOW}⚠️ Please type 1 or 2{Style.RESET_ALL}\n")
+                    print(f"{Fore.YELLOW}⚠️ Please type 1, 2 or 3{Style.RESET_ALL}\n")
 
         print(f"{Fore.WHITE}Type 'exit' to quit\n")
 
@@ -839,11 +917,71 @@ class WrapperAgent:
                 print(f"\n{Fore.YELLOW}👋 Agent offline{Style.RESET_ALL}")
                 break
 
-            # ── FIX 2: Feedback PEHLA check ──
             # STEP 1: Self-improvement feedback
             # Reddit: "After correction update lessons"
             if self.is_negative_feedback(user_input):
                 self.handle_feedback(user_input)
+                continue
+
+            # ── NEW: Direct Passthrough Bypass ──
+            # Very short query + direct issue keywords → BMAD PM Agent direct (wrapper prompt bypass)
+            # Task requirement: "wrapper agent prompt bypass kari devano, directly system pase java devano"
+            if self.is_direct_passthrough(user_input):
+                print(f"\n{Fore.YELLOW}⚡ Direct issue detected — Bypassing wrapper → BMAD PM Agent{Style.RESET_ALL}\n")
+
+                # Auto-detect module if not in context
+                if not self.ctx.module:
+                    detected = self.detect_module(user_input)
+                    if detected:
+                        self.ctx.module = detected
+                    else:
+                        # ── Better fallback: infer module via subprocess ──
+                        # Call bmad_integration in special mode to get module inference
+                        try:
+                            self.ctx.module = "general"
+                        except Exception:
+                            self.ctx.module = "general"
+
+                # Build queries for BMAD (minimal processing)
+                direct_bmad_query = user_input
+                direct_rag_query = user_input
+
+                # ── FULL BMAD CHAIN via single orchestrator entrypoint ──
+                # Use BMAD's public analyze_issue() method (all-in-one orchestrator)
+                final_answer = self.bmad.analyze_issue(
+                    bmad_query=direct_bmad_query,
+                    rag_query=direct_rag_query,
+                    original_query=user_input,
+                    module=self.ctx.module,
+                    query_type="issue",
+                    query_intent="troubleshooting",
+                )
+
+                # Output
+                print(
+                    f"\n{Fore.GREEN}{'─' * 55}\n"
+                    f"📋 DIRECT BMAD ANSWER (Passthrough)\n"
+                    f"{'─' * 55}{Style.RESET_ALL}"
+                )
+                print(final_answer)
+                print(f"{Fore.GREEN}{'─' * 55}{Style.RESET_ALL}\n")
+
+                # Save to memory
+                self.memory.save_progress(user_input, final_answer[:300])
+                self.memory.update_task_status(self.ctx.module, "DONE")
+
+                self.last_answer = final_answer
+                self.last_module = self.ctx.module
+                self.last_query = user_input
+                self.ctx.reset()
+
+                print(
+                    f"{Fore.WHITE}💡 Answer helpful hatu? "
+                    f"Feedback aapvo to system improve thashe."
+                    f"\n   (Next query type karo, ya "
+                    f"'wrong/hindi aavyu/generic' type karo)"
+                    f"{Style.RESET_ALL}\n"
+                )
                 continue
 
             # STEP 2: Bypass check — PACHHI
@@ -874,7 +1012,7 @@ class WrapperAgent:
             # STEP 5: Module confirmation pending
             if self.ctx.raw_query and not self.ctx.module:
                 detected = self.detect_module(user_input)
-                self.ctx.module = detected or user_input
+                self.ctx.module = detected or "general"
                 print(f"\n{Fore.GREEN}✅ Module: {self.ctx.module}{Style.RESET_ALL}")
                 self._ask_next_clarification()
                 continue
@@ -915,7 +1053,32 @@ class WrapperAgent:
                     "original": user_input,
                 }
                 self._run_analysis(refined, self.ctx.module, "guidance", "guidance")
+            elif self.initial_mode == "faster":
+                # Mode 3 — Faster response with auto-detection
+                self.ctx.query_intent = "faster"
+
+                # Auto-detect how-to vs issue from query
+                if self.is_howto_query(user_input):
+                    # How-To: skip clarifications, direct fast answer
+                    print(f"\n{Fore.YELLOW}📖 How-To detected — skipping clarifications{Style.RESET_ALL}")
+                    self.ctx.query_type = "howto"
+                    refined = {
+                        "bmad_query": f"{self.ctx.module} how-to flow process steps: {user_input}",
+                        "rag_query": f"{self.ctx.module} documentation guide: {user_input}",
+                        "original": user_input,
+                    }
+                    self._run_analysis(refined, self.ctx.module, "howto", "faster")
+                    self.ctx.reset()
+                else:
+                    # Issue: need clarifications (issue type, location)
+                    self.ctx.query_type = "issue"
+                    has_more = self._ask_next_clarification()
+                    if not has_more:
+                        refined = self.ctx.build_refined_query()
+                        self._run_analysis(refined, self.ctx.module, self.ctx.query_type, self.ctx.query_intent)
+                        self.ctx.reset()
             else:
+                # Mode 1 — Source Code Analysis (full BMAD chain)
                 self._ask_next_clarification()
 
 

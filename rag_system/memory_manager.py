@@ -284,17 +284,19 @@ class MemoryManager:
             with open(
                 TASK_PLAN, "r", encoding="utf-8"
             ) as f:
-                content = f.read()
+                lines = f.readlines()
 
-            updated = content.replace(
-                f"[IN_PROGRESS] [{module}",
-                f"[{status}] [{module}"
-            )
+            updated_lines = []
+            for line in lines:
+                # Check: line ma IN_PROGRESS che AND module name che
+                if "[IN_PROGRESS]" in line and f"Module: {module}" in line:
+                    line = line.replace("[IN_PROGRESS]", f"[{status}]", 1)
+                updated_lines.append(line)
 
             with open(
                 TASK_PLAN, "w", encoding="utf-8"
             ) as f:
-                f.write(updated)
+                f.writelines(updated_lines)
 
         except Exception as e:
             print(f"⚠️ Task update failed: {e}")

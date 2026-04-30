@@ -92,9 +92,23 @@ Break into 3-4 specific tasks. Keep concise.
         ba_analysis,
         task_plan,
         memory_context,
+        query_intent=None,
     ) -> str:
-        source_context = self.rag_tool.search_source_code(bmad_query)
-        doc_context = self.rag_tool.search_docs(rag_query)
+        # ── ADAPTIVE RETRIEVAL ROUTING ──
+        # Let RAGTool's smart router choose backend based on query nature
+        #  • txtai for fast semantic (docs, short lookups)
+        #  • LlamaIndex for structural (code, complex)
+        #  • Hybrid (both) for deep reasoning
+        combined_context = self.rag_tool.smart_search(bmad_query, intent=query_intent)
+
+        # Split combined context if available
+        if "SOURCE CODE CONTEXT:" in combined_context:
+            parts = combined_context.split("\n\nDOCUMENTATION CONTEXT:")
+            source_context = parts[0].replace("SOURCE CODE CONTEXT:\n", "").strip()
+            doc_context = parts[1].strip() if len(parts) > 1 else ""
+        else:
+            source_context = ""
+            doc_context = combined_context
 
         if source_context and "not available" not in source_context:
             self.memory.save_finding(original_query, source_context[:200])
@@ -284,9 +298,17 @@ No QA headers. No commentary.
             except Exception as e:
                 pass  # Silent fail for KB
 
-            # If no KB match, search RAG
-            source_context = self.rag_tool.search_source_code(bmad_query)
-            doc_context = self.rag_tool.search_docs(rag_query)
+            # If no KB match, use adaptive retrieval routing
+            combined_context = self.rag_tool.smart_search(bmad_query, intent="guidance")
+
+            # Split combined context if available
+            if "SOURCE CODE CONTEXT:" in combined_context:
+                parts = combined_context.split("\n\nDOCUMENTATION CONTEXT:")
+                source_context = parts[0].replace("SOURCE CODE CONTEXT:\n", "").strip()
+                doc_context = parts[1].strip() if len(parts) > 1 else ""
+            else:
+                source_context = ""
+                doc_context = combined_context
 
             guidance_prompt = f"""
 {self.pm_prompt}
@@ -372,6 +394,7 @@ STRICT:
                 "",
                 "",
                 memory_context,
+                query_intent,  # Pass through
             )
 
         # ISSUE — Full chain
@@ -392,6 +415,7 @@ STRICT:
             ba,
             plan,
             memory_context,
+            query_intent,  # Pass through
         )
 
         print("✅ QA Agent: Verifying answer...")

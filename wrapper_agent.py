@@ -102,6 +102,24 @@ class ConversationContext:
         self.query_intent = "troubleshooting"
         return "troubleshooting"
 
+    def extract_module(self, query: str) -> str:
+        """
+        Extract module name from query with improved accuracy.
+        Used when module is not detected through normal flow.
+        """
+        modules = [
+            "ring builder", "ring building", "double pagination",
+            "pagination", "filter", "checkout", "cart",
+            "product", "admin", "general",
+            "natural diamond", "lab grown",
+            "product attributes", "bundle"
+        ]
+        q = query.lower().strip()
+        for m in modules:
+            if m in q:
+                return m
+        return "general"
+
     def build_refined_query(self) -> dict:
         location_str = f", Location: {self.location}" if self.location else ""
 

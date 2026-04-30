@@ -20,10 +20,11 @@ class RAGTool:
     Ek j RAG backend — Singleton
     BMAD agent + Wrapper agent banne same instance use kare
     
-    search_source_code() — LlamaIndex + ChromaDB (source code)
-    search_docs()        — txtai semantic search (docs)
-    search_all()         — banne ek saath
-    answer_from_docs()   — txtai direct answer (Mode 3 — faster)
+    Adaptive retrieval — query ate ketlay complexity/goal according backend select kare:
+      - search_source_code() — LlamaIndex + ChromaDB (source code, structural)
+      - search_docs()        — txtai semantic search (docs, fast)
+      - smart_search(query)  — adaptive router (auto txtai vs LlamaIndex)
+      - answer_from_docs()   — txtai direct answer (Mode 3 — faster)
     """
 
     _instance = None
@@ -50,6 +51,77 @@ class RAGTool:
 
         self._initialized = True
         print("✅ RAG Tool ready — shared backend")
+
+    def _classify_query_intent(self, query: str) -> str:
+        """
+        Query nu nature inspect kari backend route kare:
+        - 'fast_semantic' → txtai (segmentation, fast lookup, short factual)
+        - 'deep_context'  → LlamaIndex (structural, multi-file, complex)
+        """
+        q = query.lower().strip()
+        word_count = len(q.split())
+
+        # Critical error keywords → immediate precise answer needed → txtai fast path
+        critical_patterns = [
+            "fatal error", "critical error", "white screen", "500 error",
+            "parse error", "memory exhausted", "undefined", "not found",
+            "class not found", "bootstrap error", "activation error",
+        ]
+        if any(pat in q for pat in critical_patterns):
+            return "fast_semantic"
+
+        # Short queries (1-3 words) → likely fast lookup
+        if word_count <= 3:
+            return "fast_semantic"
+
+        # Gujarati/fast interrogatives
+        fast_words = ["kyaa", "kevi", "kay", "su", "?"]
+        if any(w in q for w in fast_words):
+            return "fast_semantic"
+
+        # Explicit fast/quick/segmentation keywords
+        segmentation_keywords = [
+            "segment", "chunk", "partition", "split",
+            "fast", "quick", "immediate", "direct",
+            "fix", "solution", "solve",
+        ]
+        if any(kw in q for kw in segmentation_keywords):
+            return "fast_semantic"
+
+        # Default: complex/structural reasoning → use both backends
+        return "deep_context"
+
+    def smart_search(self, query: str, intent: str = None) -> str:
+        """
+        Adaptive retrieval router — query nature according backend auto-select.
+        
+        Args:
+            query: User query
+            intent: Optional override from wrapper ("faster", "guidance", "troubleshooting")
+                    If intent=="faster" → force txtai
+        
+        Returns:
+            Combined context string (both backends if needed)
+        """
+        # Intent override (Mode 3 from wrapper)
+        if intent == "faster":
+            return self.search_docs(query)
+
+        # Classify query automatically
+        route = self._classify_query_intent(query)
+
+        if route == "fast_semantic":
+            # txtai fast path — single backend sufficient
+            return self.search_docs(query)
+        else:
+            # deep_context — use both for completeness
+            all_results = self.search_all(query)
+            # Combine with clear separation
+            combined = (
+                f"SOURCE CODE CONTEXT:\n{all_results['source_code']}\n\n"
+                f"DOCUMENTATION CONTEXT:\n{all_results['documentation']}"
+            )
+            return combined
 
     def _load_source_index(self):
         """
